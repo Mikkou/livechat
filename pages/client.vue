@@ -1,9 +1,9 @@
 <template>
   <div>
     <v-app-bar
+      class="header"
       color="red darken-3"
       dark
-      class="header"
     >
       <v-icon>mdi-arrow-left</v-icon>
 
@@ -16,28 +16,46 @@
       </v-btn>
     </v-app-bar>
     <v-layout
-      color="gray"
       class="content ma-3"
+      color="gray"
       column
     >
       <v-flex>
-        <v-layout class="message">
+        <v-layout
+          :key="index"
+          class="message my-3"
+          v-for="(message, index) in messages"
+        >
           <v-flex class="message__logo-section">
-            <div class="message__logo"/>
+            <div
+              :class="message.nick.split('-')[0]"
+              class="message__logo"
+              v-if="message.nick !== profile.nick"
+            />
           </v-flex>
-          <v-flex>Привет</v-flex>
+          <v-flex>{{ message.text }}</v-flex>
           <v-flex class="message__logo-section">
-            <div class="message__logo"/>
+            <div
+              :class="message.nick.split('-')[0]"
+              class="message__logo"
+              v-if="message.nick === profile.nick"
+            />
           </v-flex>
         </v-layout>
       </v-flex>
     </v-layout>
     <v-row class="footer">
       <v-col cols="11">
-        <v-text-field/>
+        <v-text-field
+          @keyup.enter="sendMessage"
+          v-model="message"
+        />
       </v-col>
-      <v-col ma-3 cols="1">
-        <v-btn text icon color="error">
+      <v-col cols="1" ma-3>
+        <v-btn
+          @click="sendMessage"
+          color="error" icon text
+        >
           <v-icon>mdi-send</v-icon>
         </v-btn>
       </v-col>
@@ -46,13 +64,48 @@
 
 </template>
 
-<script lang="ts">
-  import { Component, Vue } from 'vue-property-decorator'
+<script>
+  import {Component, Vue} from 'vue-property-decorator'
+  import io from 'socket.io-client'
 
   @Component
   export default class extends Vue {
+
+    message = ''
+    profile = {
+      color: '',
+      nick: ''
+    }
+    messages = []
+
     constructor () {
       super()
+    }
+
+    mounted () {
+      this.socket = io('http://127.0.0.1:3000')
+      this.socket.on('chat message', (message) => {
+        this.messages.push(message)
+      })
+      this.socket.on('nick', (nick) => {
+        if (!this.profile.nick) {
+          this.profile.color = nick.split('-')[0]
+          console.log(nick)
+          this.profile.nick = nick
+        }
+
+      })
+      this.socket.on('messages', (messages) => {
+        this.messages = messages
+      })
+    }
+
+    sendMessage () {
+      this.socket.emit('chat message', {
+        nick: this.profile.nick,
+        text: this.message
+      })
+      this.message = ''
     }
   }
 </script>
@@ -60,7 +113,7 @@
 <style lang="scss" scoped>
 
   .header {
-    height: 8vh;
+    min-height: 60px;
   }
 
   .content {
@@ -73,7 +126,6 @@
     &__logo {
       @extend .message;
       width: 50px;
-      background: red;
       -webkit-border-radius: 50%;
       -moz-border-radius: 50%;
       border-radius: 50%;
